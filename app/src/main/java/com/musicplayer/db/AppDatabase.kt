@@ -6,10 +6,11 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.musicplayer.model.Playlist
 import com.musicplayer.model.PlaylistSong
+import com.musicplayer.model.FavouriteSong
 
 @Database(
-    entities = [Playlist::class, PlaylistSong::class],
-    version = 1,
+    entities = [Playlist::class, PlaylistSong::class, FavouriteSong::class],
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
