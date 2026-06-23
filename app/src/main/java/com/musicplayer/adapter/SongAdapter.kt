@@ -13,7 +13,9 @@ import com.musicplayer.model.Song
 
 class SongAdapter(
     private val onSongClick: (Song, Int) -> Unit,
-    private val onSongLongClick: (Song) -> Unit
+    private val onSongLongClick: (Song) -> Unit,
+    private val onFavouriteClick: (Song) -> Unit,
+    private val isFavourite: (Long) -> Boolean
 ) : ListAdapter<Song, SongAdapter.SongViewHolder>(SongDiffCallback()) {
 
     inner class SongViewHolder(private val binding: ItemSongBinding) :
@@ -31,6 +33,17 @@ class SongAdapter(
                 .error(R.drawable.ic_music_note_large)
                 .centerCrop()
                 .into(binding.ivAlbumArt)
+
+            val favIcon = if (isFavourite(song.id)) {
+                R.drawable.ic_favourite_filled
+            } else {
+                R.drawable.ic_favourite_border
+            }
+            binding.btnFavourite.setImageResource(favIcon)
+
+            binding.btnFavourite.setOnClickListener {
+                onFavouriteClick(song)
+            }
 
             binding.root.setOnClickListener { onSongClick(song, position) }
             binding.root.setOnLongClickListener {
