@@ -395,6 +395,15 @@ class MainActivity : AppCompatActivity() {
         songAdapter.submitList(filtered)
     }
 
+    override fun onBackPressed() {
+        if (currentFolder != null) {
+            currentFolder = null
+            showFoldersList()
+        } else {
+            super.onBackPressed()
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         if (isBound) {
