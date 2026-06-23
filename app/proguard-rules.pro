@@ -1,0 +1,2 @@
+-keep class com.musicplayer.model.** { *; }
+-keep class com.musicplayer.db.** { *; }
