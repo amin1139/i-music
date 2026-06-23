@@ -42,3 +42,15 @@ data class PlaylistWithSongs(
     val playlist: Playlist,
     val songs: List<PlaylistSong>
 )
+
+@Entity(tableName = "favourite_songs")
+data class FavouriteSong(
+    @PrimaryKey
+    val songId: Long,
+    val songTitle: String,
+    val songArtist: String,
+    val songPath: String,
+    val songDuration: Long,
+    val albumId: Long,
+    val addedAt: Long = System.currentTimeMillis()
+)
