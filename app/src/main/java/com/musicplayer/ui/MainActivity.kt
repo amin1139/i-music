@@ -14,20 +14,35 @@ import androidx.appcompat.widget.SearchView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.tabs.TabLayout
 import com.musicplayer.R
 import com.musicplayer.adapter.SongAdapter
+import com.musicplayer.adapter.FolderAdapter
 import com.musicplayer.databinding.ActivityMainBinding
+import com.musicplayer.db.AppDatabase
+import com.musicplayer.model.Folder
+import com.musicplayer.model.FavouriteSong
 import com.musicplayer.model.Song
 import com.musicplayer.service.MusicService
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var songAdapter: SongAdapter
+    private lateinit var folderAdapter: FolderAdapter
     private var allSongs: List<Song> = emptyList()
+    private var allFolders: List<Folder> = emptyList()
+    private var favouriteIds: MutableSet<Long> = mutableSetOf()
     private var musicService: MusicService? = null
     private var isBound = false
+
+    // 0 = All Songs, 1 = Favourites, 2 = Folders (list), 3 = Folders (inside a folder)
+    private var currentTab = 0
+    private var currentFolder: Folder? = null
+
+    private val db by lazy { AppDatabase.getInstance(this) }
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -50,10 +65,29 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.title = "Music Player"
 
+        setupTabs()
         setupRecyclerView()
+        setupFolderRecyclerView()
         setupMiniPlayer()
+        loadFavouriteIds()
         checkPermissions()
         bindService()
+    }
+
+    private fun setupTabs() {
+        binding.tabLayout.addTab(binding.tabLayout.newTab().setText("All Songs"))
+        binding.tabLayout.addTab(binding.tabLayout.newTab().setText("Favourites"))
+        binding.tabLayout.addTab(binding.tabLayout.newTab().setText("Folders"))
+
+        binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab) {
+                currentFolder = null
+                currentTab = tab.position
+                refreshCurrentTab()
+            }
+            override fun onTabUnselected(tab: TabLayout.Tab) {}
+            override fun onTabReselected(tab: TabLayout.Tab) {}
+        })
     }
 
     private fun setupRecyclerView() {
@@ -63,11 +97,96 @@ class MainActivity : AppCompatActivity() {
             },
             onSongLongClick = { song ->
                 showAddToPlaylistDialog(song)
+            },
+            onFavouriteClick = { song ->
+                toggleFavourite(song)
+            },
+            isFavourite = { songId ->
+                favouriteIds.contains(songId)
             }
         )
         binding.rvSongs.apply {
             layoutManager = LinearLayoutManager(this@MainActivity)
             adapter = songAdapter
+        }
+    }
+
+    private fun setupFolderRecyclerView() {
+        folderAdapter = FolderAdapter(
+            onFolderClick = { folder ->
+                currentFolder = folder
+                showSongsList(folder.songs)
+            }
+        )
+        binding.rvFolders.apply {
+            layoutManager = LinearLayoutManager(this@MainActivity)
+            adapter = folderAdapter
+        }
+    }
+
+    private fun loadFavouriteIds() {
+        lifecycleScope.launch {
+            favouriteIds = db.playlistDao().getAllFavouriteIds().toMutableSet()
+            songAdapter.notifyDataSetChanged()
+        }
+    }
+
+    private fun toggleFavourite(song: Song) {
+        lifecycleScope.launch {
+            if (favouriteIds.contains(song.id)) {
+                db.playlistDao().removeFavourite(song.id)
+                favouriteIds.remove(song.id)
+            } else {
+                db.playlistDao().insertFavourite(
+                    FavouriteSong(
+                        songId = song.id,
+                        songTitle = song.title,
+                        songArtist = song.artist,
+                        songPath = song.path,
+                        songDuration = song.duration,
+                        albumId = song.albumId
+                    )
+                )
+                favouriteIds.add(song.id)
+            }
+            songAdapter.notifyDataSetChanged()
+            if (currentTab == 1) {
+                refreshCurrentTab()
+            }
+        }
+    }
+
+    private fun refreshCurrentTab() {
+        when (currentTab) {
+            0 -> showSongsList(allSongs)
+            1 -> showSongsList(allSongs.filter { favouriteIds.contains(it.id) })
+            2 -> showFoldersList()
+        }
+    }
+
+    private fun showSongsList(songs: List<Song>) {
+        binding.rvFolders.visibility = android.view.View.GONE
+        binding.rvSongs.visibility = android.view.View.VISIBLE
+        songAdapter.submitList(songs)
+
+        if (songs.isEmpty()) {
+            binding.tvEmptyState.visibility = android.view.View.VISIBLE
+            binding.rvSongs.visibility = android.view.View.GONE
+        } else {
+            binding.tvEmptyState.visibility = android.view.View.GONE
+        }
+    }
+
+    private fun showFoldersList() {
+        binding.rvSongs.visibility = android.view.View.GONE
+        binding.rvFolders.visibility = android.view.View.VISIBLE
+        folderAdapter.submitList(allFolders)
+
+        if (allFolders.isEmpty()) {
+            binding.tvEmptyState.visibility = android.view.View.VISIBLE
+            binding.rvFolders.visibility = android.view.View.GONE
+        } else {
+            binding.tvEmptyState.visibility = android.view.View.GONE
         }
     }
 
@@ -114,7 +233,11 @@ class MainActivity : AppCompatActivity() {
         if (!isBound) {
             bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
         }
-        musicService?.setSongList(allSongs, index)
+        val listForPlayback = currentFolder?.songs ?: when (currentTab) {
+            1 -> allSongs.filter { favouriteIds.contains(it.id) }
+            else -> allSongs
+        }
+        musicService?.setSongList(listForPlayback, listForPlayback.indexOf(song))
         val playerIntent = Intent(this, PlayerActivity::class.java)
         startActivity(playerIntent)
     }
@@ -212,15 +335,27 @@ class MainActivity : AppCompatActivity() {
         }
 
         allSongs = songs
-        songAdapter.submitList(songs)
+        allFolders = buildFolders(songs)
+        refreshCurrentTab()
+    }
 
-        if (songs.isEmpty()) {
-            binding.tvEmptyState.visibility = android.view.View.VISIBLE
-            binding.rvSongs.visibility = android.view.View.GONE
-        } else {
-            binding.tvEmptyState.visibility = android.view.View.GONE
-            binding.rvSongs.visibility = android.view.View.VISIBLE
-        }
+    private fun buildFolders(songs: List<Song>): List<Folder> {
+        return songs
+            .filter { it.path.isNotEmpty() }
+            .groupBy { song ->
+                val lastSlash = song.path.lastIndexOf('/')
+                if (lastSlash > 0) song.path.substring(0, lastSlash) else "/"
+            }
+            .map { (folderPath, songsInFolder) ->
+                val folderName = folderPath.substringAfterLast('/').ifEmpty { "Root" }
+                Folder(
+                    name = folderName,
+                    path = folderPath,
+                    songCount = songsInFolder.size,
+                    songs = songsInFolder
+                )
+            }
+            .sortedBy { it.name.lowercase() }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -248,10 +383,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun filterSongs(query: String) {
+        if (currentFolder != null || currentTab == 2) return
+        val baseList = if (currentTab == 1) allSongs.filter { favouriteIds.contains(it.id) } else allSongs
         val filtered = if (query.isEmpty()) {
-            allSongs
+            baseList
         } else {
-            allSongs.filter {
+            baseList.filter {
                 it.title.contains(query, true) || it.artist.contains(query, true)
             }
         }
