@@ -37,7 +37,7 @@
             android:textSize="15sp"
             android:textStyle="bold"
             app:layout_constraintBottom_toTopOf="@id/tvArtistName"
-            app:layout_constraintEnd_toStartOf="@id/tvDuration"
+            app:layout_constraintEnd_toStartOf="@id/btnFavourite"
             app:layout_constraintStart_toEndOf="@id/ivAlbumArt"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintVertical_chainStyle="packed" />
@@ -54,14 +54,27 @@
             android:textColor="@color/text_secondary"
             android:textSize="13sp"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/tvDuration"
+            app:layout_constraintEnd_toStartOf="@id/btnFavourite"
             app:layout_constraintStart_toEndOf="@id/ivAlbumArt"
             app:layout_constraintTop_toBottomOf="@id/tvSongTitle" />
+
+        <ImageView
+            android:id="@+id/btnFavourite"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:padding="6dp"
+            android:src="@drawable/ic_favourite_border"
+            android:contentDescription="Favourite"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/tvDuration"
+            app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
             android:id="@+id/tvDuration"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
             android:text="0:00"
             android:textColor="@color/text_secondary"
             android:textSize="12sp"
