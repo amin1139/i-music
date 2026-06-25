@@ -33,6 +33,8 @@ class MusicService : LifecycleService() {
         const val ACTION_NEXT = "com.musicplayer.NEXT"
         const val ACTION_PREVIOUS = "com.musicplayer.PREVIOUS"
         const val ACTION_STOP = "com.musicplayer.STOP"
+        const val ACTION_SEEK_FORWARD = "com.musicplayer.SEEK_FORWARD"
+        const val ACTION_SEEK_BACKWARD = "com.musicplayer.SEEK_BACKWARD"
         const val CHANNEL_ID = "music_player_channel"
         const val NOTIFICATION_ID = 101
 
@@ -68,7 +70,12 @@ class MusicService : LifecycleService() {
                 ACTION_PLAY_PAUSE -> togglePlayPause()
                 ACTION_NEXT -> playNext()
                 ACTION_PREVIOUS -> playPrevious()
-                ACTION_STOP -> stopSelf()
+                ACTION_STOP -> {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                }
+                ACTION_SEEK_FORWARD -> skipForward()
+                ACTION_SEEK_BACKWARD -> skipBackward()
             }
         }
     }
@@ -127,6 +134,8 @@ class MusicService : LifecycleService() {
             addAction(ACTION_NEXT)
             addAction(ACTION_PREVIOUS)
             addAction(ACTION_STOP)
+            addAction(ACTION_SEEK_FORWARD)
+            addAction(ACTION_SEEK_BACKWARD)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(notificationReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
@@ -270,11 +279,13 @@ class MusicService : LifecycleService() {
         val newPos = (mediaPlayer?.currentPosition ?: 0) + 10000
         val max = mediaPlayer?.duration ?: 0
         seekTo(newPos.coerceAtMost(max))
+        currentSong.value?.let { buildAndShowNotification(it) }
     }
 
     fun skipBackward() {
         val newPos = (mediaPlayer?.currentPosition ?: 0) - 10000
         seekTo(newPos.coerceAtLeast(0))
+        currentSong.value?.let { buildAndShowNotification(it) }
     }
 
     fun getCurrentPosition(): Int = mediaPlayer?.currentPosition ?: 0
@@ -349,12 +360,15 @@ class MusicService : LifecycleService() {
         val nextPending = createActionPendingIntent(ACTION_NEXT, 2)
         val prevPending = createActionPendingIntent(ACTION_PREVIOUS, 3)
         val stopPending = createActionPendingIntent(ACTION_STOP, 4)
+        val seekForwardPending = createActionPendingIntent(ACTION_SEEK_FORWARD, 5)
+        val seekBackwardPending = createActionPendingIntent(ACTION_SEEK_BACKWARD, 6)
 
         val playPauseIcon = if (playing) R.drawable.ic_pause_notif else R.drawable.ic_play_notif
         val playPauseLabel = if (playing) "Pause" else "Play"
 
         val albumArt = getAlbumArt(song.albumId)
 
+        // Action order (indices): 0=Previous, 1=Backward10, 2=Play/Pause, 3=Forward10, 4=Next, 5=Stop
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(song.title)
             .setContentText(song.artist)
@@ -364,15 +378,19 @@ class MusicService : LifecycleService() {
             .setContentIntent(pendingIntent)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOnlyAlertOnce(true)
-            .setOngoing(playing)
+            // Always ongoing: pausing must not make the notification swipeable/dismissible.
+            // Only an explicit Stop tap or onTaskRemoved (when paused) should remove it.
+            .setOngoing(true)
             .addAction(R.drawable.ic_previous_notif, "Previous", prevPending)
+            .addAction(R.drawable.ic_backward_10_notif, "Backward 10s", seekBackwardPending)
             .addAction(playPauseIcon, playPauseLabel, playPausePending)
+            .addAction(R.drawable.ic_forward_10_notif, "Forward 10s", seekForwardPending)
             .addAction(R.drawable.ic_next_notif, "Next", nextPending)
             .addAction(R.drawable.ic_stop_notif, "Stop", stopPending)
             .setStyle(
                 androidx.media.app.NotificationCompat.MediaStyle()
                     .setMediaSession(mediaSession?.sessionToken)
-                    .setShowActionsInCompactView(0, 1, 2)
+                    .setShowActionsInCompactView(1, 2, 3)
             )
             .build()
 
@@ -419,6 +437,19 @@ class MusicService : LifecycleService() {
             release()
         }
         mediaPlayer = null
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        // App swiped away from recents:
+        // - If music is currently playing, let it keep playing in the background
+        //   (service stays alive, notification stays visible/ongoing).
+        // - If music is paused, there's nothing actively happening for the user
+        //   to come back to from recents, so stop the service and remove the notification.
+        if (mediaPlayer?.isPlaying != true) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
     }
 
     override fun onDestroy() {
