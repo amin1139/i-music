@@ -1,15 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="bg_dark">#0F0F1A</color>
-    <color name="bg_surface">#1A1A2E</color>
-    <color name="bg_card">#16213E</color>
-    <color name="accent_purple">#7C4DFF</color>
-    <color name="accent_purple_dark">#5E35B1</color>
+    <!-- Base background (deep black-purple, matches reference design) -->
+    <color name="bg_dark">#0B0A14</color>
+    <color name="bg_dark_end">#15101F</color>
+    <color name="bg_surface">#181321</color>
+    <color name="bg_card">#1C1729</color>
+
+    <!-- Glass surfaces: translucent dark-purple layers over the gradient -->
+    <color name="glass_fill">#4D2A2240</color>
+    <color name="glass_fill_strong">#662F2750</color>
+    <color name="glass_fill_top">#5C382F58</color>
+    <color name="glass_fill_bottom">#402A2240</color>
+    <color name="glass_stroke">#3DFFFFFF</color>
+    <color name="glass_stroke_soft">#22FFFFFF</color>
+    <color name="glass_highlight">#80FFFFFF</color>
+
+    <!-- Accent: single vibrant violet (mono-purple, matches reference design) -->
+    <color name="accent_purple">#7C5CFC</color>
+    <color name="accent_purple_dark">#5B3FD4</color>
+    <color name="accent_cyan">#7C5CFC</color>
+    <color name="accent_gradient_start">#9D6BFF</color>
+    <color name="accent_gradient_end">#7C5CFC</color>
+    <color name="glow_purple">#668B5CF6</color>
+    <color name="glow_pink">#66E879F9</color>
+
+    <!-- Text -->
     <color name="text_primary">#FFFFFF</color>
-    <color name="text_secondary">#8A8A9A</color>
+    <color name="text_secondary">#9B92B5</color>
+    <color name="text_tertiary">#6E6585</color>
+
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
-    <color name="colorPrimary">#7C4DFF</color>
-    <color name="colorPrimaryDark">#5E35B1</color>
-    <color name="colorAccent">#7C4DFF</color>
+    <color name="colorPrimary">#7C5CFC</color>
+    <color name="colorPrimaryDark">#5B3FD4</color>
+    <color name="colorAccent">#7C5CFC</color>
 </resources>

@@ -92,14 +92,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupRecyclerView() {
         songAdapter = SongAdapter(
-            onSongClick = { song, index ->
-                playSong(song, index)
+            onSongClick = { song, index, albumArtView ->
+                playSong(song, index, albumArtView)
             },
             onSongLongClick = { song ->
                 showAddToPlaylistDialog(song)
             },
-            onFavouriteClick = { song ->
-                toggleFavourite(song)
+            onFavouriteClick = { song, heartView ->
+                toggleFavourite(song, heartView)
             },
             isFavourite = { songId ->
                 favouriteIds.contains(songId)
@@ -131,7 +131,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun toggleFavourite(song: Song) {
+    private fun toggleFavourite(song: Song, heartView: android.view.View?) {
+        heartView?.let { animateHeartPop(it) }
         lifecycleScope.launch {
             if (favouriteIds.contains(song.id)) {
                 db.playlistDao().removeFavourite(song.id)
@@ -156,6 +157,22 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun animateHeartPop(view: android.view.View) {
+        view.animate()
+            .scaleX(1.4f)
+            .scaleY(1.4f)
+            .setDuration(140)
+            .withEndAction {
+                view.animate()
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(180)
+                    .setInterpolator(android.view.animation.OvershootInterpolator(3f))
+                    .start()
+            }
+            .start()
+    }
+
     private fun refreshCurrentTab() {
         when (currentTab) {
             0 -> showSongsList(allSongs)
@@ -167,7 +184,9 @@ class MainActivity : AppCompatActivity() {
     private fun showSongsList(songs: List<Song>) {
         binding.rvFolders.visibility = android.view.View.GONE
         binding.rvSongs.visibility = android.view.View.VISIBLE
-        songAdapter.submitList(songs)
+        songAdapter.submitList(songs) {
+            binding.rvSongs.scheduleLayoutAnimation()
+        }
 
         if (songs.isEmpty()) {
             binding.tvEmptyState.visibility = android.view.View.VISIBLE
@@ -180,7 +199,9 @@ class MainActivity : AppCompatActivity() {
     private fun showFoldersList() {
         binding.rvSongs.visibility = android.view.View.GONE
         binding.rvFolders.visibility = android.view.View.VISIBLE
-        folderAdapter.submitList(allFolders)
+        folderAdapter.submitList(allFolders) {
+            binding.rvFolders.scheduleLayoutAnimation()
+        }
 
         if (allFolders.isEmpty()) {
             binding.tvEmptyState.visibility = android.view.View.VISIBLE
@@ -193,10 +214,18 @@ class MainActivity : AppCompatActivity() {
     private fun setupMiniPlayer() {
         binding.miniPlayer.root.setOnClickListener {
             val intent = Intent(this, PlayerActivity::class.java)
-            startActivity(intent)
+            intent.putExtra(PlayerActivity.EXTRA_HAS_SHARED_ELEMENT, true)
+            val options = androidx.core.app.ActivityOptionsCompat.makeSceneTransitionAnimation(
+                this, binding.miniPlayer.ivMiniAlbumArt, "albumArtTransition"
+            )
+            startActivity(intent, options.toBundle())
         }
 
         binding.miniPlayer.btnMiniPlayPause.setOnClickListener {
+            it.animate().scaleX(0.8f).scaleY(0.8f).setDuration(80).withEndAction {
+                it.animate().scaleX(1f).scaleY(1f).setDuration(120)
+                    .setInterpolator(android.view.animation.OvershootInterpolator(2f)).start()
+            }.start()
             musicService?.togglePlayPause()
         }
 
@@ -227,7 +256,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun playSong(song: Song, index: Int) {
+    private fun playSong(song: Song, index: Int, albumArtView: android.view.View?) {
         val intent = Intent(this, MusicService::class.java)
         startService(intent)
         if (!isBound) {
@@ -239,7 +268,17 @@ class MainActivity : AppCompatActivity() {
         }
         musicService?.setSongList(listForPlayback, listForPlayback.indexOf(song))
         val playerIntent = Intent(this, PlayerActivity::class.java)
-        startActivity(playerIntent)
+
+        if (albumArtView != null) {
+            playerIntent.putExtra(PlayerActivity.EXTRA_HAS_SHARED_ELEMENT, true)
+            val options = androidx.core.app.ActivityOptionsCompat.makeSceneTransitionAnimation(
+                this, albumArtView, "albumArtTransition"
+            )
+            startActivity(playerIntent, options.toBundle())
+        } else {
+            startActivity(playerIntent)
+            overridePendingTransition(R.anim.slide_up_enter, R.anim.stay_dim)
+        }
     }
 
     private fun showAddToPlaylistDialog(song: Song) {

@@ -4,13 +4,13 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg_dark">
+    android:background="@drawable/bg_app_gradient">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appBar"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@color/bg_dark"
+        android:background="@android:color/transparent"
         app:elevation="0dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -20,29 +20,62 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
+            android:background="@android:color/transparent"
             app:titleTextColor="@color/text_primary" />
     </com.google.android.material.appbar.AppBarLayout>
 
-    <!-- Album Art -->
-    <androidx.cardview.widget.CardView
-        android:id="@+id/cardAlbumArt"
-        android:layout_width="260dp"
-        android:layout_height="260dp"
-        android:layout_marginTop="24dp"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="16dp"
+    <!-- Glow behind album art -->
+    <ImageView
+        android:id="@+id/ivAlbumGlow"
+        android:layout_width="300dp"
+        android:layout_height="300dp"
+        android:layout_marginTop="4dp"
+        android:src="@drawable/bg_play_glow"
+        android:contentDescription="@null"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/appBar" />
+
+    <!-- Album Art (circular, rotates while playing) -->
+    <FrameLayout
+        android:id="@+id/albumArtContainer"
+        android:layout_width="248dp"
+        android:layout_height="248dp"
+        android:layout_marginTop="26dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/appBar">
 
-        <ImageView
-            android:id="@+id/ivAlbumArt"
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cardAlbumArt"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:contentDescription="Album Art"
-            android:scaleType="centerCrop"
-            android:src="@drawable/ic_music_note_large" />
-    </androidx.cardview.widget.CardView>
+            app:cardCornerRadius="124dp"
+            app:cardElevation="0dp"
+            android:transitionName="albumArtTransition">
+
+            <ImageView
+                android:id="@+id/ivAlbumArt"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="Album Art"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ic_music_note_large" />
+        </androidx.cardview.widget.CardView>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/ring_album_art" />
+
+        <!-- Center hub like a vinyl spindle -->
+        <View
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="center"
+            android:background="@drawable/circle_accent_bg" />
+
+    </FrameLayout>
 
     <!-- Song Info -->
     <TextView
@@ -50,7 +83,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="24dp"
-        android:layout_marginTop="24dp"
+        android:layout_marginTop="28dp"
         android:ellipsize="marquee"
         android:focusable="true"
         android:focusableInTouchMode="true"
@@ -59,12 +92,12 @@
         android:singleLine="true"
         android:text="Song Title"
         android:textColor="@color/text_primary"
-        android:textSize="20sp"
+        android:textSize="21sp"
         android:textStyle="bold"
         android:gravity="center"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/cardAlbumArt" />
+        app:layout_constraintTop_toBottomOf="@id/albumArtContainer" />
 
     <TextView
         android:id="@+id/tvArtistName"
@@ -76,7 +109,7 @@
         android:singleLine="true"
         android:ellipsize="end"
         android:text="Artist Name"
-        android:textColor="@color/accent_purple"
+        android:textColor="@color/accent_cyan"
         android:textSize="15sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -104,10 +137,10 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="20dp"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="18dp"
         android:progressTint="@color/accent_purple"
-        android:thumbTint="@color/accent_purple"
-        android:progressBackgroundTint="@color/bg_surface"
+        android:thumbTint="@color/accent_cyan"
+        android:progressBackgroundTint="@color/glass_stroke"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tvAlbumName" />
@@ -116,7 +149,7 @@
         android:id="@+id/tvCurrentTime"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="20dp"
+        android:layout_marginStart="24dp"
         android:text="0:00"
         android:textColor="@color/text_secondary"
         android:textSize="12sp"
@@ -127,7 +160,7 @@
         android:id="@+id/tvTotalTime"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="20dp"
+        android:layout_marginEnd="24dp"
         android:text="0:00"
         android:textColor="@color/text_secondary"
         android:textSize="12sp"
@@ -140,7 +173,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="8dp"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="18dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tvCurrentTime">
@@ -172,6 +205,18 @@
             app:layout_constraintEnd_toStartOf="@id/btnPlayPause"
             app:layout_constraintStart_toEndOf="@id/btnPrevious"
             app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Play/Pause glow layer -->
+        <ImageView
+            android:id="@+id/ivPlayGlow"
+            android:layout_width="92dp"
+            android:layout_height="92dp"
+            android:src="@drawable/bg_play_glow"
+            android:contentDescription="@null"
+            app:layout_constraintBottom_toBottomOf="@id/btnPlayPause"
+            app:layout_constraintEnd_toEndOf="@id/btnPlayPause"
+            app:layout_constraintStart_toStartOf="@id/btnPlayPause"
+            app:layout_constraintTop_toTopOf="@id/btnPlayPause" />
 
         <!-- Play/Pause -->
         <ImageButton
@@ -223,7 +268,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="40dp"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="18dp"
         android:gravity="center"
         android:orientation="horizontal"
         app:layout_constraintEnd_toEndOf="parent"
@@ -239,7 +284,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Shuffle"
             android:src="@drawable/ic_shuffle"
-            android:tint="@color/accent_purple" />
+            android:tint="@color/accent_cyan" />
 
         <ImageButton
             android:id="@+id/btnRepeat"
@@ -250,7 +295,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Repeat"
             android:src="@drawable/ic_repeat"
-            android:tint="@color/accent_purple" />
+            android:tint="@color/accent_cyan" />
 
     </LinearLayout>
 

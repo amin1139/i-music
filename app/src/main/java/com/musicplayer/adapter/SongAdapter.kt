@@ -2,6 +2,7 @@ package com.musicplayer.adapter
 
 import android.net.Uri
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -12,9 +13,9 @@ import com.musicplayer.databinding.ItemSongBinding
 import com.musicplayer.model.Song
 
 class SongAdapter(
-    private val onSongClick: (Song, Int) -> Unit,
+    private val onSongClick: (Song, Int, View?) -> Unit,
     private val onSongLongClick: (Song) -> Unit,
-    private val onFavouriteClick: (Song) -> Unit,
+    private val onFavouriteClick: (Song, View?) -> Unit,
     private val isFavourite: (Long) -> Boolean
 ) : ListAdapter<Song, SongAdapter.SongViewHolder>(SongDiffCallback()) {
 
@@ -42,10 +43,10 @@ class SongAdapter(
             binding.btnFavourite.setImageResource(favIcon)
 
             binding.btnFavourite.setOnClickListener {
-                onFavouriteClick(song)
+                onFavouriteClick(song, binding.btnFavourite)
             }
 
-            binding.root.setOnClickListener { onSongClick(song, position) }
+            binding.root.setOnClickListener { onSongClick(song, position, binding.ivAlbumArt) }
             binding.root.setOnLongClickListener {
                 onSongLongClick(song)
                 true

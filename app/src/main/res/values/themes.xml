@@ -6,12 +6,25 @@
         <item name="colorPrimaryDark">@color/accent_purple_dark</item>
         <item name="colorAccent">@color/accent_purple</item>
         <item name="android:windowBackground">@color/bg_dark</item>
-        <item name="android:statusBarColor">@color/bg_surface</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@color/bg_dark</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:windowActivityTransitions">true</item>
+        <item name="android:windowContentTransitions">true</item>
+        <item name="android:windowSharedElementEnterTransition">@transition/album_art_transition</item>
+        <item name="android:windowSharedElementExitTransition">@transition/album_art_transition</item>
     </style>
 
     <style name="Theme.MusicPlayer.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" />
     <style name="Theme.MusicPlayer.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" />
+
+    <style name="TabTextAppearance" parent="TextAppearance.Design.Tab">
+        <item name="textAllCaps">false</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
 
     <style name="AlertDialogTheme" parent="Theme.MaterialComponents.DayNight.Dialog.Alert">
         <item name="colorPrimary">@color/accent_purple</item>

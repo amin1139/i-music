@@ -5,31 +5,48 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg_dark"
+    android:background="@drawable/bg_app_gradient"
     tools:context=".ui.MainActivity">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:theme="@style/Theme.MusicPlayer.AppBarOverlay">
+        android:background="@android:color/transparent"
+        android:theme="@style/Theme.MusicPlayer.AppBarOverlay"
+        app:elevation="0dp">
 
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:background="@color/bg_surface"
+            android:background="@android:color/transparent"
             app:popupTheme="@style/Theme.MusicPlayer.PopupOverlay"
             app:titleTextColor="@color/text_primary" />
 
-        <com.google.android.material.tabs.TabLayout
-            android:id="@+id/tabLayout"
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@color/bg_surface"
-            app:tabIndicatorColor="@color/accent_purple"
-            app:tabSelectedTextColor="@color/accent_purple"
-            app:tabTextColor="@color/text_secondary" />
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/bg_tab_container"
+            android:padding="4dp">
+
+            <com.google.android.material.tabs.TabLayout
+                android:id="@+id/tabLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@android:color/transparent"
+                app:tabIndicator="@drawable/bg_tab_indicator"
+                app:tabIndicatorAnimationMode="elastic"
+                app:tabIndicatorFullWidth="true"
+                app:tabIndicatorGravity="stretch"
+                app:tabIndicatorHeight="36dp"
+                app:tabRippleColor="@android:color/transparent"
+                app:tabSelectedTextColor="@color/text_primary"
+                app:tabTextAppearance="@style/TabTextAppearance"
+                app:tabTextColor="@color/text_secondary" />
+        </FrameLayout>
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -42,7 +59,8 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:clipToPadding="false"
-            android:paddingBottom="80dp"
+            android:paddingBottom="96dp"
+            android:layoutAnimation="@anim/layout_anim_list"
             app:layout_constraintBottom_toTopOf="@id/miniPlayer"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -53,8 +71,9 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:clipToPadding="false"
-            android:paddingBottom="80dp"
+            android:paddingBottom="96dp"
             android:visibility="gone"
+            android:layoutAnimation="@anim/layout_anim_list"
             app:layout_constraintBottom_toTopOf="@id/miniPlayer"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
