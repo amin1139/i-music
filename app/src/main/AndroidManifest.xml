@@ -17,16 +17,22 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MusicPlayer">
 
-        <!-- Main Activity -->
+        <!-- Splash Activity (Launcher) -->
         <activity
-            android:name=".ui.MainActivity"
+            android:name=".ui.SplashActivity"
             android:exported="true"
-            android:launchMode="singleTop">
+            android:theme="@style/Theme.MusicPlayer">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Main Activity -->
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="false"
+            android:launchMode="singleTop" />
 
         <!-- Player Activity -->
         <activity
