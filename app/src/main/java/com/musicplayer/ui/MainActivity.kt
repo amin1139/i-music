@@ -49,6 +49,7 @@ class MainActivity : AppCompatActivity() {
             val binder = service as MusicService.MusicBinder
             musicService = binder.getService()
             isBound = true
+            musicService?.restoreLastPlayedState()
             observeService()
         }
         override fun onServiceDisconnected(name: ComponentName?) {
