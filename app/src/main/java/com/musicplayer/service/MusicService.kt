@@ -25,6 +25,7 @@ import androidx.lifecycle.MutableLiveData
 import com.musicplayer.R
 import com.musicplayer.model.Song
 import com.musicplayer.ui.PlayerActivity
+import com.musicplayer.util.PlaybackStateStore
 
 class MusicService : LifecycleService() {
 
@@ -59,6 +60,11 @@ class MusicService : LifecycleService() {
     private var shuffleEnabled = false
     private var repeatModeValue = 0
     private var shuffledIndices: MutableList<Int> = mutableListOf()
+
+    // Set by restoreLastPlayedState() when there's a saved song but playback hasn't
+    // been (re)started yet this session. Consumed by togglePlayPause()/resumePendingSong().
+    private var pendingResumeSong: Song? = null
+    private var pendingResumePosition: Int = 0
 
     inner class MusicBinder : Binder() {
         fun getService(): MusicService = this@MusicService
@@ -98,6 +104,55 @@ class MusicService : LifecycleService() {
         setupAudioManager()
         setupMediaSession()
         registerReceiver()
+    }
+
+    /**
+     * Loads the last-played song (if any) into the UI-facing LiveData without starting
+     * playback, so a freshly launched app can show it in the mini-player immediately.
+     * Safe to call on every activity bind: it's a no-op once a song is already active
+     * this session (whether restored or freshly chosen).
+     */
+    fun restoreLastPlayedState() {
+        if (currentSong.value != null || mediaPlayer != null) return
+        val saved = PlaybackStateStore.load(applicationContext) ?: return
+
+        pendingResumeSong = saved.song
+        pendingResumePosition = saved.positionMs
+
+        val savedQueue = PlaybackStateStore.loadQueue(applicationContext)
+        if (savedQueue != null) {
+            songs = savedQueue.songs
+            currentSongIndex = savedQueue.currentIndex.coerceIn(0, songs.size - 1)
+            shuffleEnabled = savedQueue.shuffleEnabled
+            repeatModeValue = savedQueue.repeatMode
+            songList.postValue(songs)
+            currentIndex.postValue(currentSongIndex)
+            shuffleMode.postValue(shuffleEnabled)
+            repeatMode.postValue(repeatModeValue)
+        } else {
+            // No queue was ever saved (e.g. upgrading from an older save) — fall back
+            // to a single-song "queue" containing just the last played track.
+            songs = listOf(saved.song)
+            currentSongIndex = 0
+        }
+
+        currentSong.postValue(saved.song)
+        isPlaying.postValue(false)
+        duration.postValue(saved.song.duration.toInt())
+        currentPosition.postValue(saved.positionMs)
+    }
+
+    /** Persists the queue itself (list, position within it, shuffle/repeat) — call on queue changes only. */
+    private fun persistQueueState() {
+        if (songs.isEmpty()) return
+        PlaybackStateStore.saveQueue(applicationContext, songs, currentSongIndex, shuffleEnabled, repeatModeValue)
+    }
+
+    private fun resumePendingSong() {
+        val song = pendingResumeSong ?: return
+        val position = pendingResumePosition
+        pendingResumeSong = null
+        playSong(song, startPositionMs = position)
     }
 
     override fun onBind(intent: Intent): IBinder {
@@ -150,11 +205,14 @@ class MusicService : LifecycleService() {
         songList.postValue(list)
         currentIndex.postValue(index)
         shuffledIndices = (list.indices).toMutableList()
+        persistQueueState()
         playSong(songs[currentSongIndex])
     }
 
-    fun playSong(song: Song) {
+    fun playSong(song: Song, startPositionMs: Int = 0) {
         try {
+            // A fresh explicit playSong() supersedes any not-yet-started restored song.
+            pendingResumeSong = null
             releaseMediaPlayer()
             if (!requestAudioFocus()) return
 
@@ -168,6 +226,9 @@ class MusicService : LifecycleService() {
                 )
                 setDataSource(applicationContext, Uri.parse(song.path))
                 prepare()
+                if (startPositionMs > 0) {
+                    seekTo(startPositionMs)
+                }
                 start()
 
                 setOnCompletionListener {
@@ -186,9 +247,11 @@ class MusicService : LifecycleService() {
             currentSong.postValue(song)
             isPlaying.postValue(true)
             duration.postValue(mediaPlayer?.duration ?: 0)
+            currentPosition.postValue(startPositionMs)
             updateMediaSession(song)
             buildAndShowNotification(song)
             startPositionUpdater()
+            saveCurrentPlaybackState()
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -212,7 +275,11 @@ class MusicService : LifecycleService() {
     }
 
     fun togglePlayPause() {
-        if (mediaPlayer?.isPlaying == true) pauseMusic() else resumeMusic()
+        when {
+            mediaPlayer?.isPlaying == true -> pauseMusic()
+            mediaPlayer != null -> resumeMusic()
+            pendingResumeSong != null -> resumePendingSong()
+        }
     }
 
     fun pauseMusic() {
@@ -220,6 +287,7 @@ class MusicService : LifecycleService() {
         isPlaying.postValue(false)
         currentSong.value?.let { buildAndShowNotification(it) }
         updatePlaybackState(PlaybackStateCompat.STATE_PAUSED)
+        saveCurrentPlaybackState()
     }
 
     fun resumeMusic() {
@@ -235,6 +303,7 @@ class MusicService : LifecycleService() {
         if (songs.isEmpty()) return
         currentSongIndex = getNextIndex()
         currentIndex.postValue(currentSongIndex)
+        persistQueueState()
         playSong(songs[currentSongIndex])
     }
 
@@ -247,6 +316,7 @@ class MusicService : LifecycleService() {
         }
         currentSongIndex = getPreviousIndex()
         currentIndex.postValue(currentSongIndex)
+        persistQueueState()
         playSong(songs[currentSongIndex])
     }
 
@@ -271,7 +341,13 @@ class MusicService : LifecycleService() {
     }
 
     fun seekTo(position: Int) {
-        mediaPlayer?.seekTo(position)
+        if (mediaPlayer != null) {
+            mediaPlayer?.seekTo(position)
+        } else if (pendingResumeSong != null) {
+            // Nothing loaded yet (restored-but-not-playing state) — remember the
+            // scrubbed position so the eventual Play tap resumes from here.
+            pendingResumePosition = position
+        }
         currentPosition.postValue(position)
     }
 
@@ -295,27 +371,44 @@ class MusicService : LifecycleService() {
     fun setShuffleMode(enabled: Boolean) {
         shuffleEnabled = enabled
         shuffleMode.postValue(enabled)
+        persistQueueState()
     }
 
     fun setRepeatMode(mode: Int) {
         repeatModeValue = mode
         repeatMode.postValue(mode)
+        persistQueueState()
     }
 
     private var positionRunnable: Runnable? = null
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var positionTickCount = 0
 
     private fun startPositionUpdater() {
         positionRunnable?.let { handler.removeCallbacks(it) }
+        positionTickCount = 0
         positionRunnable = object : Runnable {
             override fun run() {
                 if (mediaPlayer?.isPlaying == true) {
                     currentPosition.postValue(mediaPlayer?.currentPosition ?: 0)
+                    positionTickCount++
+                    // Persist every ~5s while playing, as a safety net in case the
+                    // process is killed without a clean pause/onDestroy.
+                    if (positionTickCount % 10 == 0) {
+                        saveCurrentPlaybackState()
+                    }
                 }
                 handler.postDelayed(this, 500)
             }
         }
         handler.post(positionRunnable!!)
+    }
+
+    /** Persists the currently active song + playback position for "resume last played". */
+    private fun saveCurrentPlaybackState() {
+        val song = currentSong.value ?: return
+        val position = mediaPlayer?.currentPosition ?: pendingResumePosition
+        PlaybackStateStore.save(applicationContext, song, position)
     }
 
     private fun updateMediaSession(song: Song) {
@@ -455,6 +548,9 @@ class MusicService : LifecycleService() {
     override fun onDestroy() {
         super.onDestroy()
         positionRunnable?.let { handler.removeCallbacks(it) }
+        // Capture the final position before the player is released so the app can
+        // resume from exactly here next launch (covers task-removed / swipe-away too).
+        saveCurrentPlaybackState()
         releaseMediaPlayer()
         mediaSession?.release()
         try { unregisterReceiver(notificationReceiver) } catch (_: Exception) {}
